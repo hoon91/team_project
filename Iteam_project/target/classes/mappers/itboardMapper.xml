@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="itboardMapper">
+	<!-- 게시판 글 작성 -->
+	<insert id="insert" parameterType="com.commu.it.vo.ItBoardVO" useGeneratedKeys="true" keyProperty="bno">
+	    <selectKey keyProperty="bno" resultType="int" order="BEFORE">
+	    	SELECT IT_BOARD_SEQ.NEXTVAL FROM DUAL
+	    </selectKey>
+	    INSERT INTO IT_BOARD(    BNO 
+	   					       , TITLE 
+	   					       , CONTENT 
+	   					       , WRITER  )
+	                  VALUES(    #{bno}
+	                 		   , #{title}
+	                 		   , #{content}
+	                 		   , #{writer}  )
+    </insert>
+
+
+	<select id="listPage" resultType="com.commu.it.vo.ItBoardVO"
+		parameterType="com.commu.page.SearchCriteria">
+		SELECT BNO,
+		TITLE,
+		CONTENT,
+		WRITER,
+		REGDATE,
+		CNT,
+		RECOMMEND,
+		REPLY_COUNT 
+		FROM (
+		SELECT BNO,
+		TITLE,
+		CONTENT,
+		WRITER,
+		REGDATE,
+		CNT,
+		RECOMMEND,
+		REPLY_COUNT, 
+		ROW_NUMBER() OVER(ORDER BY BNO DESC) AS RNUM
+		FROM IT_BOARD
+		WHERE 1=1
+		<include refid="search"></include>
+		) MP
+		WHERE RNUM BETWEEN #{rowStart} AND #{rowEnd}
+		ORDER BY BNO DESC
+	</select>
+	
+	<sql id="search">
+		<if test="searchType != null">
+			<if test="searchType == 't'.toString()">AND TITLE LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'c'.toString()">AND CONTENT LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'w'.toString()">AND WRITER LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'tc'.toString()">AND (TITLE LIKE '%' || #{keyword} || '%') or (CONTENT
+				LIKE '%' || #{keyword} || '%')</if>
+		</if>
+	</sql>
+
+
+	<select id="read" parameterType="int"
+		resultType="com.commu.it.vo.ItBoardVO">
+		SELECT BNO
+		, TITLE
+		, CONTENT
+		, WRITER
+		, REGDATE
+		, CNT
+		, RECOMMEND  
+		FROM IT_BOARD
+		WHERE BNO = #{bno}
+	</select>
+
+	<update id="update" parameterType="com.commu.it.vo.ItBoardVO">
+		UPDATE IT_BOARD
+		SET TITLE =
+		#{title},
+		CONTENT = #{content}
+		WHERE BNO = #{bno}
+	</update>
+
+	<delete id="delete" parameterType="int">
+		DELETE
+		FROM IT_BOARD
+		WHERE BNO =
+		#{bno}
+	</delete>
+
+
+
+	<select id="listCount" parameterType="com.commu.page.SearchCriteria"
+		resultType="int">
+		SELECT COUNT(BNO)
+		FROM IT_BOARD
+		WHERE 1=1
+		<include refid="search"></include>
+		AND BNO > 0
+	</select>
+
+	<!-- 신고 -->
+	<update id="goReport">
+		UPDATE USERS SET
+		ISREPORT = 'true'
+		WHERE ID = #{id}
+	</update>
+	
+	<!-- 조회수 -->
+	<update id="boardCnt" parameterType="int">
+		UPDATE IT_BOARD SET
+		CNT = CNT+1
+		WHERE BNO = #{bno} 
+	</update>
+	
+	<!-- 추천 -->
+	<update id="recommend" parameterType="int">
+		UPDATE IT_BOARD SET
+		RECOMMEND = RECOMMEND+1
+		WHERE BNO = #{bno}
+	</update>
+	
+	<!-- 첨부파일 업로드 -->
+    <insert id="insertFile" parameterType="hashMap">
+		INSERT INTO IT_FILE(
+			FILE_NO,
+			BNO,
+			ORG_FILE_NAME,
+			STORED_FILE_NAME,
+			FILE_SIZE
+		)VALUES(
+			IT_FILE_NO.NEXTVAL,
+			#{BNO},
+			#{ORG_FILE_NAME},
+			#{STORED_FILE_NAME},
+			#{FILE_SIZE}
+		)
+    </insert>
+    
+    <!-- 첨부파일 조회 -->
+    <select id="selectFileList" parameterType="int" resultType="hashMap">
+    	SELECT FILE_NO,
+    		   ORG_FILE_NAME,
+    		   ROUND(FILE_SIZE/1024,1) AS FILE_SIZE,
+    		   DEL_GB
+    	  FROM IT_FILE
+    	 WHERE BNO = #{BNO}
+    	   AND DEL_GB = 'N'
+    	 ORDER BY FILE_NO ASC
+    </select>
+    
+    <!-- 첨부파일 다운 -->
+    <select id="selectFileInfo" parameterType="hashMap" resultType="hashMap">
+    	SELECT 
+    		STORED_FILE_NAME,
+    		ORG_FILE_NAME
+    	FROM IT_FILE
+    	WHERE FILE_NO = #{FILE_NO}
+    </select>
+    
+    <update id="updateFile" parameterType="hashMap">
+    	UPDATE IT_FILE SET
+    	DEL_GB = 'Y'
+    	WHERE FILE_NO = #{FILE_NO}
+    </update>
+    
+    <!-- 21.06.21 댓글 수 추가 -->
+	<update id="replyCount" parameterType="int">
+		UPDATE IT_BOARD IT
+		SET IT.REPLY_COUNT = (SELECT COUNT(RNO) FROM IT_REPLY WHERE BNO = #{bno})
+		WHERE IT.BNO = #{bno}
+	</update>
+    
+    
+</mapper>

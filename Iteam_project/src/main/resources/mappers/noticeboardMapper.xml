@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="noticeboardMapper">
+	<!-- 게시판 글 작성 -->
+	<insert id="insert">
+		INSERT INTO N_BOARD( BNO
+		, TITLE
+		, CONTENT
+		, WRITER )
+		VALUES( N_BOARD_SEQ.NEXTVAL
+		, #{title}
+		, #{content}
+		, #{writer} )
+
+	</insert>
+
+
+	<select id="listPage" resultType="com.commu.notice.vo.NBoardVO"
+		parameterType="com.commu.page.SearchCriteria">
+		SELECT BNO,
+		TITLE,
+		CONTENT,
+		WRITER,
+		REGDATE,
+		CNT,
+		RECOMMEND,
+		REPLY_COUNT 
+		FROM (
+		SELECT BNO,
+		TITLE,
+		CONTENT,
+		WRITER,
+		REGDATE,
+		CNT,
+		RECOMMEND,
+		REPLY_COUNT, 
+		ROW_NUMBER() OVER(ORDER BY BNO DESC) AS RNUM
+		FROM N_BOARD
+		WHERE 1=1
+		<include refid="search"></include>
+		) N
+		WHERE RNUM BETWEEN #{rowStart} AND #{rowEnd}
+		ORDER BY BNO DESC
+	</select>
+	
+
+
+
+
+	<select id="read" parameterType="int"
+		resultType="com.commu.notice.vo.NBoardVO">
+		SELECT BNO
+		, TITLE
+		, CONTENT
+		, WRITER
+		, REGDATE
+		, CNT
+		, RECOMMEND  
+		FROM N_BOARD
+		WHERE BNO = #{bno}
+	</select>
+
+	<update id="update" parameterType="com.commu.notice.vo.NBoardVO">
+		UPDATE N_BOARD
+		SET TITLE =
+		#{title},
+		CONTENT = #{content}
+		WHERE BNO = #{bno}
+	</update>
+
+	<delete id="delete" parameterType="int">
+		DELETE
+		FROM N_BOARD
+		WHERE BNO =
+		#{bno}
+	</delete>
+
+
+
+	<select id="listCount" parameterType="com.commu.page.SearchCriteria"
+		resultType="int">
+		SELECT COUNT(BNO)
+		FROM N_BOARD
+		WHERE 1=1
+		<include refid="search"></include>
+		AND BNO > 0
+	</select>
+
+	<!-- 신고 -->
+	<update id="goReport">
+		UPDATE USERS SET
+		ISREPORT = 'true'
+		WHERE ID = #{id}
+	</update>
+	
+	<!-- 조회수 -->
+	<update id="boardCnt" parameterType="int">
+		UPDATE N_BOARD SET
+		CNT = CNT+1
+		WHERE BNO = #{bno} 
+	</update>
+
+	<update id="recommend" parameterType="int">
+		UPDATE N_BOARD SET
+		RECOMMEND = RECOMMEND+1
+		WHERE BNO = #{bno}
+	</update>
+	
+	<!-- 21.06.21 댓글 수 추가 -->
+	<update id="replyCount" parameterType="int">
+		UPDATE N_BOARD N
+		SET N.REPLY_COUNT = (SELECT COUNT(RNO) FROM N_REPLY WHERE BNO = #{bno})
+		WHERE N.BNO = #{bno}
+	</update>
+	
+	
+	<sql id="search">
+		<if test="searchType != null">
+			<if test="searchType == 't'.toString()">AND TITLE LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'c'.toString()">AND CONTENT LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'w'.toString()">AND WRITER LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'tc'.toString()">AND (TITLE LIKE '%' || #{keyword} || '%') or (CONTENT
+				LIKE '%' || #{keyword} || '%')</if>
+		</if>
+	</sql>
+
+</mapper>

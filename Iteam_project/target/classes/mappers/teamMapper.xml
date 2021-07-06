@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="teamMapper">
+	<!-- 게시판 글 작성 -->
+	<insert id="insert">
+		INSERT INTO TEAM_BOARD( BNO
+		, TITLE
+		, CONTENT
+		, WRITER
+		, PEOPLE 
+		, SKILL)
+		VALUES( MP_BOARD_SEQ.NEXTVAL
+		, #{title}
+		, #{content}
+		, #{writer}
+		, #{people}
+		, #{skill})
+
+	</insert>
+
+
+	<select id="listPage" resultType="com.commu.team.vo.TeamVO"
+		parameterType="com.commu.page.SearchCriteria">
+		SELECT BNO,
+		TITLE,
+		CONTENT,
+		WRITER,
+		REGDATE,
+		CNT,
+		PEOPLE,
+		SKILL,
+		COMPLETE, 
+		REPLY_COUNT 
+		FROM (
+		SELECT BNO,
+		TITLE,
+		CONTENT,
+		WRITER,
+		REGDATE,
+		CNT,
+		PEOPLE,
+		SKILL,
+		COMPLETE,
+		REPLY_COUNT, 
+		ROW_NUMBER() OVER(ORDER BY BNO DESC) AS RNUM
+		FROM TEAM_BOARD
+		WHERE 1=1
+		<include refid="search"></include>
+		) MP
+		WHERE RNUM BETWEEN #{rowStart} AND #{rowEnd}
+		ORDER BY BNO DESC
+	</select>
+	
+
+
+
+
+	<select id="read" parameterType="int"
+		resultType="com.commu.team.vo.TeamVO">
+		SELECT BNO
+		, TITLE
+		, CONTENT
+		, WRITER
+		, REGDATE
+		, CNT
+		, RECOMMEND
+		, PEOPLE
+		, SKILL
+		, COMPLETE  
+		FROM TEAM_BOARD
+		WHERE BNO = #{bno}
+	</select>
+
+	<update id="update" parameterType="com.commu.team.vo.TeamVO">
+		UPDATE TEAM_BOARD
+		SET
+		TITLE = #{title},
+		CONTENT = #{content},
+		PEOPLE = #{people},
+		SKILL = #{skill}
+		WHERE BNO = #{bno}
+	</update>
+
+	<delete id="delete" parameterType="int">
+		DELETE
+		FROM TEAM_BOARD
+		WHERE BNO =
+		#{bno}
+	</delete>
+
+
+
+	<select id="listCount" parameterType="com.commu.page.SearchCriteria"
+		resultType="int">
+		SELECT COUNT(BNO)
+		FROM TEAM_BOARD
+		WHERE 1=1
+		<include refid="search"></include>
+		AND BNO > 0
+	</select>
+
+	<!-- 신고 -->
+	<update id="goReport">
+		UPDATE USERS SET
+		ISREPORT = 'true'
+		WHERE ID = #{id}
+	</update>
+	
+	<!-- 팀매칭 -->
+	<update id="makeTeam">
+		UPDATE USERS SET
+		PNO = #{pno}
+		WHERE ID = #{id}
+	</update>
+	
+	<!-- 팀카운팅 -->
+	<select id="teamCnt" parameterType="com.commu.user.vo.UserVO" resultType="int">
+		SELECT COUNT(*)
+		FROM USERS
+		WHERE PNO = #{pno}
+	</select>
+	
+	<!-- 프로젝트 팀원 조회 -->
+	<select id="teamList" resultType="com.commu.user.vo.UserVO" parameterType="com.commu.user.vo.UserVO">
+		SELECT
+		*
+		FROM USERS
+		WHERE PNO = #{pno}
+	</select>
+	
+	<!-- 프로젝트 세션 업데이트 -->
+	<select id="sessionUpdate" resultType="com.commu.user.vo.UserVO" parameterType="com.commu.user.vo.UserVO">
+		SELECT
+		*
+		FROM USERS
+		WHERE ID = #{id}
+	</select>
+	
+	<!-- 프로젝트 정보 조회 -->
+	<select id="teamInfo" resultType="com.commu.team.vo.TeamVO" parameterType="com.commu.team.vo.TeamVO">
+		SELECT
+		*
+		FROM TEAM_BOARD
+		WHERE BNO = #{bno}
+	</select>
+	
+	<!-- 프로젝트 나가기 -->
+	<update id="teamQuick" parameterType="com.commu.user.vo.UserVO">
+		UPDATE USERS SET 
+		PNO = 0 
+		WHERE ID = #{id}
+	</update>
+	
+	<!-- 조회수 -->
+	<update id="boardCnt" parameterType="int">
+		UPDATE TEAM_BOARD SET
+		CNT = CNT+1
+		WHERE BNO = #{bno} 
+	</update>
+	
+    <!-- 프로젝트 완료 여부 -->
+	<update id="teamComplete" parameterType="com.commu.team.vo.TeamVO">
+		UPDATE TEAM_BOARD SET
+		COMPLETE = 'complete'
+		WHERE BNO = #{bno} 
+	</update>
+	
+    <!-- 프로젝트 삭제 -->
+	<update id="teamDelete" parameterType="com.commu.user.vo.UserVO">
+		UPDATE USERS SET
+		PNO = 0
+		WHERE PNO = #{pno} 
+	</update>
+
+	<update id="recommend" parameterType="int">
+		UPDATE TEAM_BOARD SET
+		RECOMMEND = RECOMMEND+1
+		WHERE BNO = #{bno}
+	</update>
+	
+	<!-- 21.06.21 댓글 수 추가 -->
+	<update id="replyCount" parameterType="int">
+		UPDATE TEAM_BOARD TEAM
+		SET TEAM.REPLY_COUNT = (SELECT COUNT(RNO) FROM TEAM_REPLY WHERE BNO = #{bno})
+		WHERE TEAM.BNO = #{bno}
+	</update>
+	
+	
+	
+	
+	
+	
+	<sql id="search">
+		<if test="searchType != null">
+			<if test="searchType == 't'.toString()">AND TITLE LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'c'.toString()">AND CONTENT LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'w'.toString()">AND SKILL LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'tc'.toString()">AND (TITLE LIKE '%' || #{keyword} || '%') or (SKILL
+				LIKE '%' || #{keyword} || '%')</if>
+		</if>
+	</sql>
+
+</mapper>
